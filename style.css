@@ -93,7 +93,7 @@ canvas.shown {
 }
 
 .card {
-    width: 30ch;
+    width: 27ch;
     min-width: 30ch;
     height: 205px;
     position: relative;
@@ -500,20 +500,20 @@ header p {
 
 .larger {
     height: 500px;
-    width: 30ch;
+    width: 27ch;
     transition: all 0.33s ease-in-out;
 }
 
 .flip-larger {
     height: 500px;
-    width: 33ch;
+    width: 28ch;
     transform: scale(1) rotateY(-180deg);
     transition: all 0.5s ease-in-out, transform 0.8s cubic-bezier(.2, .8, .2, 1);
 }
 
 .flip-medium-complete {
     height: 298px;
-    width: 30ch;
+    width: 27ch;
     transform: scale(1.1) rotateY(-360deg);
     transition: all 0.5s ease-in-out, transform 0.8s cubic-bezier(.2, .8, .2, 1);
 }
