@@ -270,7 +270,7 @@ document.querySelector("#celebrate").addEventListener("click", function () {
             }, 15000);
         });
     }, 5000);
-    this.classList.add("pressed")
     doneOnce = true
     // doEmojiSmoke();
 }); 
+
