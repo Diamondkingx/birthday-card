@@ -1,0 +1,338 @@
+
+const VERTEX_SHADER = `#version 300 es
+
+        layout(location = 0) in vec2 a_position; // Standard quad (-0.5 to 0.5)
+
+        // Instance Data
+        layout(location = 1) in vec3 a_instPos;
+        layout(location = 2) in vec3 a_instRot;
+        layout(location = 3) in vec3 a_instColor;
+        layout(location = 4) in vec2 a_instSize;
+        layout(location = 5) in vec2 a_instDeform;
+
+        uniform mat4 u_projection;
+        uniform float u_time;
+
+        out vec3 v_color;
+        out vec3 v_normal;
+        out vec2 v_uv;      // Pass UVs for edge softening
+        out float v_blur;   // Pass calculated blur amount
+
+        mat3 rotateEuler(vec3 r) {
+            float cx = cos(r.x), sx = sin(r.x);
+            float cy = cos(r.y), sy = sin(r.y);
+            float cz = cos(r.z), sz = sin(r.z);
+            return mat3(
+                cy*cz, -cy*sz + sx*sy*cz,  sx*sz + cx*sy*cz,
+                cy*sz,  cx*cz + sx*sy*sz, -sx*cz + cx*sy*sz,
+               -sy,     sx*cy,             cx*cy
+            );
+        }
+
+        void main() {
+            // 1. Pass local UV (a_position is -0.5 to 0.5)
+            v_uv = a_position;
+
+            // 2. Scale & Deform
+            vec3 pos = vec3(a_position.x * a_instSize.x, a_position.y * a_instSize.y, 0.0);
+            float bendAmount = sin(u_time * 5.0 + a_instDeform.x) * a_instDeform.y;
+            pos.z = bendAmount * sign(a_position.x * a_position.y);
+
+            // 3. Normal
+            vec3 localNormal = normalize(vec3(-bendAmount * a_position.y, -bendAmount * a_position.x, 1.0));
+
+            // 4. Rotate
+            mat3 rotMat = rotateEuler(a_instRot);
+            pos = rotMat * pos;
+            vec3 finalNormal = rotMat * localNormal;
+
+            // 5. World Position
+            vec3 worldPos = pos + a_instPos;
+
+            // 6. Camera View Offset (Camera is at Z=0, looking at Z=-600)
+            vec3 viewPos = worldPos;
+            viewPos.z -= 600.0;
+
+            // --- DEPTH OF FIELD CALCULATION ---
+            // The focal plane is at -600.0 (where we placed the center of action).
+            // Calculate distance from focal plane.
+            float distFromFocus = abs(viewPos.z - (-600.0));
+
+            // Map distance to a blur factor (0.0 = sharp, 1.0 = blurry)
+            // Sharp within +/- 50 units, fully blurry at +/- 400 units
+            v_blur = smoothstep(50.0, 400.0, distFromFocus);
+
+            // 7. Projection
+            gl_Position = u_projection * vec4(viewPos, 1.0);
+
+            v_color = a_instColor;
+            v_normal = finalNormal;
+}
+`
+
+const FRAGMENT_SHADER = `#version 300 es
+        precision highp float;
+
+        in vec3 v_color;
+        in vec3 v_normal;
+        in vec2 v_uv;
+        in float v_blur;
+
+        uniform vec3 u_lightDir;
+        
+        out vec4 outColor;
+
+void main() {
+            // --- LIGHTING ---
+            vec3 normal = normalize(v_normal);
+            vec3 light = normalize(u_lightDir);
+            float diffuse = abs(dot(normal, light));
+            float specular = pow(diffuse, 20.0); 
+            vec3 base = v_color * (0.6 + 0.4 * diffuse);
+            vec3 sheen = vec3(1.0) * specular * 0.5;
+            vec3 finalColor = base + sheen;
+
+            // --- BOKEH / BLUR SIMULATION ---
+
+            // Calculate distance from center of particle (0.0 to 0.5)
+            // We use Signed Distance Field (SDF) logic for a box to keep corners somewhat sharp when in focus
+            vec2 d = abs(v_uv) - vec2(0.5);
+
+            // This calculates the distance from the edge of the square
+            float distFromEdge = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+
+            // When v_blur is 0.0 (Sharp): We want a hard step at the edge
+            // When v_blur is 1.0 (Blurry): We want a wide gradient
+
+            // 'feather' determines how soft the edge is
+            float feather = 0.01 + (v_blur * 0.45);
+
+            // Use smoothstep to create the alpha mask
+            // If we are blurry, we erode the edge inward to make it look like a blob
+            float alphaMask = 1.0 - smoothstep(0.0 - feather, 0.0, distFromEdge);
+
+            // Additionally reduce overall opacity for very blurry items to simulate light scattering
+            float opacity = 1.0 - (v_blur * 0.7);
+
+    outColor = vec4(finalColor, alphaMask * opacity);
+}
+`
+
+const CONFIG = {
+    count: 2000, // Increased count to show off depth better
+    gravity: 0.1,
+    drag: 0.03,
+    colors: [
+        [1.0, 0.23, 0.18], [1.0, 0.58, 0.0], [1.0, 0.8, 0.0],
+        [0.29, 0.85, 0.39], [0.35, 0.78, 0.98], [0.0, 0.47, 1.0],
+        [0.34, 0.33, 0.83], [1.0, 0.17, 0.33]
+    ]
+};
+
+const canvas = document.querySelector('canvas');
+const gl = canvas.getContext('webgl2', { alpha: true, antialias: true });
+
+if (!gl) document.body.innerHTML = "WebGL 2 not supported.";
+
+function createShader(gl, type, sourceId) {
+    const source = sourceId === 'vs' ? VERTEX_SHADER : FRAGMENT_SHADER;
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shader));
+        return null;
+    }
+    return shader;
+}
+
+const program = gl.createProgram();
+gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, 'vs'));
+gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, 'fs'));
+gl.linkProgram(program);
+gl.useProgram(program);
+
+const p_pos = new Float32Array(CONFIG.count * 3);
+const p_vel = new Float32Array(CONFIG.count * 3);
+const p_rot = new Float32Array(CONFIG.count * 3);
+const p_rotVel = new Float32Array(CONFIG.count * 3);
+
+const INSTANCE_STRIDE = 13;
+const instanceData = new Float32Array(CONFIG.count * INSTANCE_STRIDE);
+let width, height;
+
+function resetParticle(i, initial = false) {
+    const idx = i * 3;
+    const offset = i * INSTANCE_STRIDE;
+
+    p_pos[idx] = (Math.random() - 0.5) * width;
+    p_pos[idx + 1] = initial ? (Math.random() - 0.5) * height : height / 2 + 50;
+
+    // INCREASED DEPTH RANGE: -600 to +600 relative to focus plane
+    // This ensures particles go both very close to camera and very far
+    p_pos[idx + 2] = (Math.random() - 0.5) * 1200;
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = initial ? 0 : (Math.random() * 5 + 10);
+    p_vel[idx] = initial ? (Math.random() - 0.5) * 2 : Math.cos(angle) * (Math.random() * 5);
+    p_vel[idx + 1] = initial ? (Math.random() * 5) : -speed;
+    p_vel[idx + 2] = (Math.random() - 0.5) * 5; // More movement in Z
+
+    p_rot[idx] = Math.random() * 6;
+    p_rot[idx + 1] = Math.random() * 6;
+    p_rot[idx + 2] = Math.random() * 6;
+    p_rotVel[idx] = (Math.random() - 0.5) * 0.15;
+    p_rotVel[idx + 1] = (Math.random() - 0.5) * 0.15;
+    p_rotVel[idx + 2] = (Math.random() - 0.5) * 0.05;
+
+    const color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
+    instanceData[offset + 6] = color[0];
+    instanceData[offset + 7] = color[1];
+    instanceData[offset + 8] = color[2];
+    instanceData[offset + 9] = Math.random() * 12 + 6;
+    instanceData[offset + 10] = Math.random() * 8 + 4;
+    instanceData[offset + 11] = Math.random() * Math.PI * 2;
+    instanceData[offset + 12] = Math.random() * 2 + 0.5;
+}
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+
+const posBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -0.5, -0.5, 0.5, -0.5, -0.5, 0.5,
+    -0.5, 0.5, 0.5, -0.5, 0.5, 0.5
+]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+const instBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, instBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, instanceData.byteLength, gl.DYNAMIC_DRAW);
+
+const FSIZE = 4;
+const STRIDE = INSTANCE_STRIDE * FSIZE;
+
+gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, STRIDE, 0); gl.vertexAttribDivisor(1, 1);
+gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, STRIDE, 3 * FSIZE); gl.vertexAttribDivisor(2, 1);
+gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 3, gl.FLOAT, false, STRIDE, 6 * FSIZE); gl.vertexAttribDivisor(3, 1);
+gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 2, gl.FLOAT, false, STRIDE, 9 * FSIZE); gl.vertexAttribDivisor(4, 1);
+gl.enableVertexAttribArray(5); gl.vertexAttribPointer(5, 2, gl.FLOAT, false, STRIDE, 11 * FSIZE); gl.vertexAttribDivisor(5, 1);
+
+const locProjection = gl.getUniformLocation(program, 'u_projection');
+const locTime = gl.getUniformLocation(program, 'u_time');
+const locLight = gl.getUniformLocation(program, 'u_lightDir');
+
+gl.uniform3f(locLight, 0.2, 1.0, 0.5);
+
+gl.enable(gl.BLEND);
+// Important for the soft edges to blend correctly
+gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+gl.enable(gl.DEPTH_TEST);
+gl.depthFunc(gl.LEQUAL);
+
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    gl.viewport(0, 0, width, height);
+    for (let i = 0; i < CONFIG.count; i++) resetParticle(i, true);
+}
+window.addEventListener('resize', resize);
+resize();
+
+let time = 0;
+let active = false;
+
+function loop() {
+    time += 0.01;
+
+    for (let i = 0; i < CONFIG.count; i++) {
+        const idx = i * 3;
+        const offset = i * INSTANCE_STRIDE;
+
+        p_pos[idx] += p_vel[idx];
+        p_pos[idx + 1] += p_vel[idx + 1];
+        p_pos[idx + 2] += p_vel[idx + 2];
+
+        p_rot[idx] += p_rotVel[idx];
+        p_rot[idx + 1] += p_rotVel[idx + 1];
+        p_rot[idx + 2] += p_rotVel[idx + 2];
+        p_rot[idx] *= 1 - CONFIG.drag * 0.5;
+        p_rot[idx + 1] *= 1 - CONFIG.drag * 0.5;
+        p_rot[idx + 2] *= 1 - CONFIG.drag * 0.5;
+
+        p_vel[idx + 1] -= CONFIG.gravity;
+        p_vel[idx] *= (1 - CONFIG.drag);
+        p_vel[idx + 1] *= (1 - CONFIG.drag * 0.5);
+        p_vel[idx + 2] *= (1 - CONFIG.drag);
+
+        if (p_pos[idx + 1] < -height / 2 - 100 && active) {
+            resetParticle(i);
+        }
+
+        instanceData[offset] = p_pos[idx];
+        instanceData[offset + 1] = p_pos[idx + 1];
+        instanceData[offset + 2] = p_pos[idx + 2];
+        instanceData[offset + 3] = p_rot[idx];
+        instanceData[offset + 4] = p_rot[idx + 1];
+        instanceData[offset + 5] = p_rot[idx + 2];
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, instBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, instanceData);
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    const fov = 60 * Math.PI / 180;
+    const aspect = width / height;
+    const zNear = 200;
+    const zFar = 2000; // Increased ZFar to allow distant blur
+    const f = 1.0 / Math.tan(fov / 2);
+    const projMat = [
+        f / aspect, 0, 0, 0,
+        0, f, 0, 0,
+        0, 0, (zFar + zNear) / (zNear - zFar), -1,
+        0, 0, (2 * zFar * zNear) / (zNear - zFar), 0
+    ];
+
+    gl.useProgram(program);
+    gl.bindVertexArray(vao);
+    gl.uniformMatrix4fv(locProjection, false, new Float32Array(projMat));
+    gl.uniform1f(locTime, time);
+
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, CONFIG.count);
+
+    requestAnimationFrame(loop);
+}
+
+function burst(x, y) {
+    active = true;
+    const wx = x - width / 2;
+    const wy = -(y - height / 2);
+
+    for (let i = 0; i < CONFIG.count; i++) {
+        const idx = i * 3;
+        p_pos[idx] = wx;
+        p_pos[idx + 1] = wy;
+
+        // Explode with high depth variance
+        p_pos[idx + 2] = (Math.random() - 0.5) * 200;
+
+        const angle = Math.random() * Math.PI * 2;
+        const force = Math.random() * 25 + 5;
+        const lift = (Math.random() * 20) + 10;
+
+        p_vel[idx] = Math.cos(angle) * force;
+        p_vel[idx + 1] = Math.sin(angle) * force + lift;
+        p_vel[idx + 2] = (Math.random() - 0.5) * 80; // High Z velocity to push particles out of focus
+
+        p_rotVel[idx] = (Math.random() - 0.5);
+        p_rotVel[idx + 1] = (Math.random() - 0.5);
+    }
+}
+// addEventListener('mousedown', (e) => burst(e.clientX, e.clientY));
+// addEventListener('touchstart', (e) => burst(e.touches[0].clientX, e.touches[0].clientY));
+
+// loop();

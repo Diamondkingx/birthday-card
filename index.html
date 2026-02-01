@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Aclonica&family=Freckle+Face&family=Ranchers&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.css"
+        integrity="sha512-NhLySQDkiKSKnT+R795uaHWRQ7D3VuIvgeOLCK8cWq4w5fq4sWF90gj8eURpTqn/f1mFzqClpOz8JPlgVTLfFw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="dark-bg screen-shake">
+    <canvas></canvas>
+    <div id="noise-layer"></div>
+    <div class="stage">
+        <div class="card">
+            <section class="face front">
+                <div class="dialog">
+                    <header class="dialog-header">
+                        <div class="dialog-icon">
+                            <i class="fa-solid fa-hand-peace"></i>
+                        </div>
+                        <div class="dialog-title">
+                            <h2 class="heading">Hey!</h2>
+                            <p class="sub-heading">I have something for you!</p>
+                        </div>
+                    </header>
+
+                    <p class="dialog-body">
+                        It might be something cool and special… do you want to see it?
+                        <br />(There is no other option :P)
+                    </p>
+
+                    <footer class="dialog-actions">
+                        <button data-action="continue" id="continue"
+                            class="dialog-btn-right btn-neuromorphic">Continue</button>
+                    </footer>
+                </div>
+            </section>
+            <section class="face back">
+                <div class="card-glint faded"></div>
+                <div id="birthday-card">
+                    <h2 class="birthday wobble faded" id="birthday">
+                        <span>H</span><span>A</span><span>P</span><span>P</span><span>Y</span>
+                        <br>
+                        <span>B</span><span>I</span><span>R</span><span>T</span><span>H</span><span>D</span><span>A</span><span>Y</span><span>!</span>
+                    </h2>
+                    <div class="emoji-grid faded">
+                        <div class="emoji" data-emoji="1f38a"></div>
+                        <div class="emoji" data-emoji="1f382"></div>
+                        <div class="emoji" data-emoji="1f381"></div>
+                        <div class="emoji" data-emoji="1f388"></div>
+                        <div class="emoji" data-emoji="1f606"></div>
+                        <div class="emoji" data-emoji="1f60d"></div>
+                        <div class="emoji" data-emoji="1f490"></div>
+                        <div class="emoji" data-emoji="1f973"></div>
+                        <div class="emoji" data-emoji="1f602"></div>
+                        <div class="emoji" data-emoji="1f381"></div>
+                        <div class="emoji" data-emoji="1f388"></div>
+                        <div class="emoji" data-emoji="1f604"></div>
+                    </div>
+                    <button id="celebrate" class="btn-neuromorphic faded">Let's Celebrate</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+</body>
+<script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
+<script src="confetti.js"></script>
+<script src="script.js"></script>
+
+</html>
