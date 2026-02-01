@@ -251,7 +251,7 @@ document.querySelector("#celebrate").addEventListener("click", function () {
     if (doneOnce) return
     card.classList.add("shake")
     canvas.classList.add("shown");
-    navigator.vibrate(50)
+    navigator.vibrate(200)
     setTimeout(() => {
         burst(innerWidth / 2, innerHeight / 2)
         shakeScreen()
@@ -273,4 +273,5 @@ document.querySelector("#celebrate").addEventListener("click", function () {
     doneOnce = true
     // doEmojiSmoke();
 }); 
+
 
