@@ -506,7 +506,7 @@ header p {
 
 .flip-larger {
     height: 500px;
-    width: 28ch;
+    width: 27ch;
     transform: scale(1) rotateY(-180deg);
     transition: all 0.5s ease-in-out, transform 0.8s cubic-bezier(.2, .8, .2, 1);
 }
@@ -689,3 +689,4 @@ header p {
 .signature i {
     font-weight: bold;
 }
+
