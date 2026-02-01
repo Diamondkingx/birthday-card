@@ -41,7 +41,7 @@ canvas {
     position: fixed;
     inset: 0;
     z-index: 100;
-    background-image: url("/noise.svg");
+    background-image: url("noise.svg");
     background-repeat: repeat;
     background-size: 200px 200px;
     opacity: 0.1;
@@ -672,4 +672,5 @@ header p {
 
 .signature i {
     font-weight: bold;
+
 }
