@@ -1,50 +1,78 @@
-const card = document.querySelector('.card');
+function element(selector) {
+    return document.querySelector(selector)
+}
+
+function elements(selector) {
+    return document.querySelectorAll(selector)
+}
+
+function createElement(type, attributes = {}, properties = {}, creationOptions = {}) {
+    const element = document.createElement(type, creationOptions)
+
+    for (let attribute in attributes)
+        element.setAttribute(attribute, attributes[attribute])
+
+    for (let [property, value] of Object.entries(properties))
+        element[property] = value
+
+    element.appendTo = function (parent) {
+        let parentElement
+
+        if (typeof parent == "string")
+            parentElement = element(parent)
+        else if (parent instanceof HTMLElement)
+            parentElement = parent
+        else throw new TypeError("Unknown parent type.")
+
+        if (!parentElement) throw new ReferenceError("Undefined Parent.")
+
+        parentElement.append(this)
+        return this
+    }
+
+    return element
+}
+
+const card = element('.card');
+const birthdayCard = element('#birthday-card');
+const cardGlint = element('.card-glint');
+const cardFront = element('.face.front');
+const cardBack = element('.face.back');
+const emojiGrid = element('.emoji-grid');
+
 function fadeInElements(parent, delayBetween = 300, extra = []) {
     [...parent.childNodes, ...extra].forEach((node, index) => {
-        setTimeout(() => {
-            node.classList?.remove?.('faded');
-        }, index * delayBetween);
+        setTimeout(() => node.classList?.remove?.('faded'), index * delayBetween);
     })
 }
-card.addEventListener('click', function () {
-    const el = this;
-
-    el.classList.add('anticipate');
-
-    setTimeout(() => {
-        el.classList.remove('anticipate');
-        el.classList.toggle('flip-larger');
-
-        setTimeout(() => {
-            el.classList.toggle('shake');
-            fadeInElements(document.querySelector('#birthday-card'), 300);
-            setTimeout(() => {
-                document.querySelector('.card-glint').classList.remove('faded');
-            }, 1500)
-        }, 1000);
-    }, 150);
-});
-
 
 function shakeScreen() {
     document.body.classList.add('screen-shake');
-    setTimeout(() => {
-        document.body.classList.remove('screen-shake');
-    }, 1000);
+    setTimeout(() => document.body.classList.remove('screen-shake'), 1000);
 }
-addEventListener("mousedown", () => { });
 
-document.querySelectorAll('.emoji').forEach(el => {
-    const code = el.dataset.emoji;
+const emojis = ["heart eyes.gif", "laughing.gif", "heart.gif", "rose.gif", "joy.gif"];
+function emojiSmoke(parent, count = 20) {
+    let i = 0
+    const interval = setInterval(() => {
+        if (i < count) {
+            new AnimatedEmoji(parent, emojis[Math.floor(Math.random() * emojis.length)]);
+            i++
+        }
+        else clearInterval(interval);
+    }, 200);
+}
 
-    const anim = lottie.loadAnimation({
-        container: el,
-        renderer: 'svg',
-        loop: true,
-        autoplay: true,
-        path: `https://fonts.gstatic.com/s/e/notoemoji/latest/${code}/lottie.json`
-    })
-});
+function fadeInWords(element, stagger = 80, delay = 2000) {
+    const words = element.textContent.split(" ");
+    element.textContent = "";
+
+    words.forEach((word, i) => {
+        const span = createElement("span", {}, { className: "word", textContent: word + " " });
+        element.appendChild(span);
+        setTimeout(() => span.style.opacity = 1, delay + i * stagger);
+    });
+}
 
 
 class AnimatedEmoji {
@@ -66,9 +94,7 @@ class AnimatedEmoji {
         this.shouldRemove = false;
         this.animationDone = false
 
-        this.el = document.createElement("img");
-        this.el.src = src;
-        this.el.className = "animated-emoji";
+        this.el = createElement("img", {}, { src, className: "animated-emoji" });
 
         this.parent.appendChild(this.el);
 
@@ -162,23 +188,43 @@ class AnimatedEmoji {
     }
 }
 
-function doEmojiSmoke() {
-    const container = document.querySelector(".card");
-    const emojis = ["/heart eyes.gif", "/laughing.gif", "/heart.gif", "/rose.gif", "/joy.gif"];
-    let i = 0
-    setInterval(() => {
-        if (i < 20) {
-            new AnimatedEmoji(container, emojis[Math.floor(Math.random() * emojis.length)]);
-            i++
-        }
-    }, 500);
-}
+
+card.querySelector("#continue").addEventListener('click', function () {
+    setTimeout(() => {
+        card.classList.add('anticipate');
+        setTimeout(() => {
+            card.classList.remove('anticipate');
+            card.classList.add('flip-larger');
+            setTimeout(() => {
+                fadeInElements(birthdayCard, 300);
+                setTimeout(() => {
+                    cardGlint.classList.remove('faded');
+                }, 1500)
+            }, 1000);
+        }, 150);
+    }, 200);
+});
+
+
+// init lottie emojis
+elements('.emoji').forEach(el => {
+    const code = el.dataset.emoji;
+
+    lottie.loadAnimation({
+        container: el,
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        path: `https://fonts.gstatic.com/s/e/notoemoji/latest/${code}/lottie.json`
+    })
+});
+
 
 function changeFrontFaceToMsg() {
-    const frontFace = document.querySelector('.face.front');
+    const frontFace = element('.face.front');
     frontFace.innerHTML = `
     <div id="birthday-message">
-      <header class="dialog-header">
+      <header class="dialog-header faded" style="transition: opacity .5s ease-in-out">
                         <div class="dialog-icon">
                             <i class="fa-solid fa-face-smile"></i>
                         </div>
@@ -189,40 +235,42 @@ function changeFrontFaceToMsg() {
       </header>
     <p class="message part-1">I hope today brings lots of laughter, warmth, and a few fun surprises that make you smile.</p>
     <p class="message part-2">May the year ahead be full of good health, little wins, big dreams, and moments that remind you how loved you are. Today is all about you — enjoy every moment.</p>
-    <span class="signature">
+    <span class="signature faded">
     Designed and Coded by <i>Jalaj Patel</i>
     </span>
     </div>`;
 }
 
-function fadeInWords(el, stagger = 80) {
-    const words = el.textContent.split(" ");
-    el.textContent = "";
-
-    words.forEach((word, i) => {
-        const span = document.createElement("span");
-        span.textContent = word + " ";
-        span.className = "word";
-
-        el.appendChild(span);
-
-        setTimeout(() => {
-            span.style.opacity = 1;
-        }, i * stagger);
-    });
-}
 
 function flipCard360() {
-    const card = document.querySelector('.card');
     card.classList.add('flip-medium-complete');
 }
 
+var doneOnce = false
 document.querySelector("#celebrate").addEventListener("click", function () {
-    flipCard360();
-    changeFrontFaceToMsg();
-    requestAnimationFrame(() => {
-        fadeInElements(document.querySelector('#birthday-message'), 300);
-        // fadeInWords(document.querySelector('#birthday-message p'), 200);
-    });
+    if (doneOnce) return
+    card.classList.add("shake")
+    canvas.classList.add("shown");
+    navigator.vibrate(50)
+    setTimeout(() => {
+        burst(innerWidth / 2, innerHeight / 2)
+        shakeScreen()
+        emojiSmoke(document.querySelector(".card"), 22);
+    }, 200)
+
+    setTimeout(() => {
+        flipCard360();
+        changeFrontFaceToMsg();
+        requestAnimationFrame(() => {
+            fadeInElements(document.querySelector('#birthday-message'), 1000);
+            fadeInWords(document.querySelector('.message.part-1'), 200);
+            fadeInWords(document.querySelector('.message.part-2'), 200, 7000);
+            setTimeout(() => {
+                element('.signature').classList.add('visible');
+            }, 15000);
+        });
+    }, 5000);
+    this.classList.add("pressed")
+    doneOnce = true
     // doEmojiSmoke();
 }); 
