@@ -35,6 +35,12 @@ canvas {
     width: 100vw;
     height: 100vh;
     pointer-events: all;
+    opacity: 0;
+    transition: opacity .2s ease-in-out;
+}
+
+canvas.shown {
+    opacity: 1;
 }
 
 #noise-layer {
@@ -87,7 +93,8 @@ canvas {
 }
 
 .card {
-    width: min(90vh, 30ch);
+    width: 30ch;
+    min-width: 30ch;
     height: 205px;
     position: relative;
     background: linear-gradient(to top,
@@ -255,15 +262,18 @@ header p {
     transition: opacity 0.25s ease-in-out;
 }
 
-.btn-neuromorphic:active {
+.btn-neuromorphic:active,
+.btn-neuromorphic.pressed {
     scale: 0.95;
 }
 
-.btn-neuromorphic:active::before {
+.btn-neuromorphic:active::before,
+.btn-neuromorphic.pressed::before {
     opacity: 0;
 }
 
-.btn-neuromorphic:active::after {
+.btn-neuromorphic:active::after,
+.btn-neuromorphic.pressed::after {
     opacity: 1;
 }
 
@@ -496,7 +506,7 @@ header p {
 
 .flip-larger {
     height: 500px;
-    width: 35ch;
+    width: 33ch;
     transform: scale(1) rotateY(-180deg);
     transition: all 0.5s ease-in-out, transform 0.8s cubic-bezier(.2, .8, .2, 1);
 }
@@ -662,15 +672,20 @@ header p {
 
 .signature {
     padding-inline: 1rem;
-    margin-top: 4rem;
+    margin-top: 2rem;
     text-align: right;
     width: 100%;
     display: flex;
+    opacity: 0;
     flex-direction: column;
     font-size: 12px;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.signature.visible {
+    opacity: 1;
 }
 
 .signature i {
     font-weight: bold;
-
 }
