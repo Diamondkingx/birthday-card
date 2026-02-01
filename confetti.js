@@ -335,4 +335,4 @@ function burst(x, y) {
 // addEventListener('mousedown', (e) => burst(e.clientX, e.clientY));
 // addEventListener('touchstart', (e) => burst(e.touches[0].clientX, e.touches[0].clientY));
 
-// loop();
+loop();
